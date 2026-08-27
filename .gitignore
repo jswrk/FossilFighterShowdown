@@ -1,0 +1,7 @@
+mdFiles/
+.DS_Store
+venv/
+__pycache__/
+*.pyc
+.env
+db.sqlite3
