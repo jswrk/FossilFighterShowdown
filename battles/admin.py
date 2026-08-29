@@ -20,9 +20,30 @@ class SupportEffectStatInline(admin.TabularInline):
 
 @admin.register(Creature)
 class CreatureAdmin(admin.ModelAdmin):
-    list_display = ("name", "element", "creature_class", "classification", "lp",
-                    "attack", "defense", "accuracy", "evasion_speed", "crit_rate")
-    list_filter = ("element", "creature_class", "classification")
+    list_display = ("name", "genus", "element", "creature_class", "group",
+                    "diet", "size_category", "lp", "attack", "defense",
+                    "accuracy", "evasion_speed", "crit_rate")
+    list_filter = ("element", "creature_class", "group", "diet", "size_category")
+    fields = (
+        "name",
+        "element",
+        "genus",
+        "group",
+        "era",
+        "length_ft",
+        "length_m",
+        "size_category",
+        "diet",
+        "discovered_location",
+        "creature_class",
+        "lp",
+        "attack",
+        "defense",
+        "accuracy",
+        "evasion_speed",
+        "crit_rate",
+        "sprite",
+    )
     inlines = [MoveInline]
 
 

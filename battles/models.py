@@ -18,11 +18,26 @@ class Creature(models.Model):
         SUPPORT = "SUPPORT", "Support"
         TRANSFORMATION = "TRANSFORMATION", "Transformation"
 
+    class Diet(models.TextChoices):
+        CARNIVORE = "CARNIVORE", "Carnivore"
+        HERBIVORE = "HERBIVORE", "Herbivore"
+
+    class SizeCategory(models.TextChoices):
+        SMALL = "SMALL", "Small"
+        MEDIUM = "MEDIUM", "Medium"
+        LARGE = "LARGE", "Large"
+
     name = models.CharField(max_length=100, unique=True)
     element = models.CharField(max_length=20, choices=Element.choices)
+    genus = models.CharField(max_length=100, blank=True)
+    group = models.CharField(max_length=50, blank=True)
+    era = models.CharField(max_length=100, blank=True)
+    length_ft = models.FloatField(null=True, blank=True)
+    length_m = models.FloatField(null=True, blank=True)
+    size_category = models.CharField(max_length=10, choices=SizeCategory.choices)
+    diet = models.CharField(max_length=20, choices=Diet.choices)
+    discovered_location = models.CharField(max_length=100, blank=True)
     creature_class = models.CharField(max_length=20, choices=Class.choices, verbose_name="Class")
-    classification = models.CharField(max_length=50, blank=True)
-    era_location = models.CharField(max_length=100, blank=True)
 
     lp = models.PositiveIntegerField()
     attack = models.PositiveIntegerField()
@@ -105,7 +120,7 @@ class TeamSkill(models.Model):
     trait_category = models.CharField(max_length=10, choices=TraitCategory.choices)
     trait_value = models.CharField(
         max_length=100,
-        help_text="This specific value required across the whole time, e.g. 'Fire' or 'Carnivor'.",
+        help_text="This specific value required across the whole team, e.g. 'Fire' or 'Carnivore'.",
     )
 
     def __str__(self):
