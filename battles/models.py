@@ -21,23 +21,79 @@ class Creature(models.Model):
     class Diet(models.TextChoices):
         CARNIVORE = "CARNIVORE", "Carnivore"
         HERBIVORE = "HERBIVORE", "Herbivore"
+        OMNIVORE = "OMNIVORE", "Omnivore"
+        PISCIVORE = "PISCIVORE", "Piscivore"
 
     class SizeCategory(models.TextChoices):
         SMALL = "SMALL", "Small"
         MEDIUM = "MEDIUM", "Medium"
         LARGE = "LARGE", "Large"
+        TITANIC = "TITANIC", "Titanic"
 
+    class Era(models.TextChoices):
+        MESOZOIC_TRIASSIC = "MESOZOIC_TRIASSIC", "Mesozoic Triassic"
+        MESOZOIC_JURASSIC = "MESOZOIC_JURASSIC", "Mesozoic Jurassic"
+        MESOZOIC_CRETACEOUS = "MESOZOIC_CRETACEOUS", "Mesozoic Cretaceous"
+        CENOZOIC_TERTIARY = "CENOZOIC_TERTIARY", "Cenozoic Tertiary"
+        CENOZOIC_QUATERNARY = "CENOZOIC_QUATERNARY", "Cenozoic Quaternary"
+
+    class DigSite(models.TextChoices):
+        BB_BASE = "BB_BASE", "BB Base"
+        BOTTOMSUP_BAY = "BOTTOMSUP_BAY", "Bottomsup Bay"
+        COLDFEET_GLACIER = "COLDFEET_GLACIER", "Coldfeet Glacier"
+        EXCHANGED_FOR_DP = "EXCHANGED_FOR_DP", "Exchanged for DP"
+        GREENHORN_PLAINS = "GREENHORN_PLAINS", "Greenhorn Plains"
+        KNOTWOOD_FOREST = "KNOTWOOD_FOREST", "Knotwood Forest"
+        MEDAL_DEALER_JOE = "MEDAL_DEALER_JOE", "Medal-Dealer Joe"
+        MOLES_SECRET_TUNNEL = "MOLES_SECRET_TUNNEL", "Moles' Secret Tunnel"
+        MT_LAVAFLOW = "MT_LAVAFLOW", "Mt. Lavaflow"
+        PARCHMENT_DESERT = "PARCHMENT_DESERT", "Parchment Desert"
+        PAY_TO_DIG_SITE = "PAY_TO_DIG_SITE", "Pay-to-Dig Site"
+        RIVET_RAVINE = "RIVET_RAVINE", "Rivet Ravine"
+        SECRET_ISLAND = "SECRET_ISLAND", "Secret Island"
+
+    class DiscoveredLocation(models.TextChoices):
+        ANTARCTICA = "ANTARCTICA", "Antarctica"
+        ARGENTINA = "ARGENTINA", "Argentina"
+        AUSTRALIA = "AUSTRALIA", "Australia"
+        BELGIUM = "BELGIUM", "Belgium"
+        BRAZIL = "BRAZIL", "Brazil"
+        CANADA = "CANADA", "Canada"
+        CHINA = "CHINA", "China"
+        EGYPT = "EGYPT", "Egypt"
+        ENGLAND = "ENGLAND", "England"
+        FRANCE = "FRANCE", "France"
+        GERMANY = "GERMANY", "Germany"
+        JAPAN = "JAPAN", "Japan"
+        KAZAKHSTAN = "KAZAKHSTAN", "Kazakhstan"
+        MEXICO = "MEXICO", "Mexico"
+        MONGOLIA = "MONGOLIA", "Mongolia"
+        MOROCCO = "MOROCCO", "Morocco"
+        NIGERIA = "NIGERIA", "Nigeria"
+        PAKISTAN = "PAKISTAN", "Pakistan"
+        PORTUGAL = "PORTUGAL", "Portugal"
+        ROMANIA = "ROMANIA", "Romania"
+        RUSSIA = "RUSSIA", "Russia"
+        TANZANIA = "TANZANIA", "Tanzania"
+        THAILAND = "THAILAND", "Thailand"
+        TURKEY = "TURKEY", "Turkey"
+        USA = "USA", "U.S.A."
+
+    number = models.PositiveSmallIntegerField(unique=True)
     name = models.CharField(max_length=100, unique=True)
     element = models.CharField(max_length=20, choices=Element.choices)
     genus = models.CharField(max_length=100, blank=True)
     group = models.CharField(max_length=50, blank=True)
-    era = models.CharField(max_length=100, blank=True)
+    era = models.CharField(max_length=30, choices=Era.choices)
     length_ft = models.FloatField(null=True, blank=True)
     length_m = models.FloatField(null=True, blank=True)
     size_category = models.CharField(max_length=10, choices=SizeCategory.choices)
     diet = models.CharField(max_length=20, choices=Diet.choices)
-    discovered_location = models.CharField(max_length=100, blank=True)
+    dig_site = models.CharField(max_length=25, choices=DigSite.choices)
+    discovered_location = models.CharField(max_length=15, choices=DiscoveredLocation.choices)
     creature_class = models.CharField(max_length=20, choices=Class.choices, verbose_name="Class")
+    team_skill_groups = models.ManyToManyField(
+        "TeamSkillGroup", related_name="creatures", blank=True)
 
     lp = models.PositiveIntegerField()
     attack = models.PositiveIntegerField()
@@ -45,6 +101,10 @@ class Creature(models.Model):
     accuracy = models.PositiveIntegerField()
     evasion_speed = models.PositiveIntegerField()
     crit_rate = models.PositiveIntegerField()
+    status_resistance = models.PositiveIntegerField(
+        help_text="Percent chance to resist an incoming status effect.")
+    sz_damage_multiplier = models.FloatField(
+        help_text="Multiplier applied to this creature's Attack while in a Support Zone.")
 
     sprite = models.ImageField(upload_to="creatures/", blank=True, null=True)
 
@@ -106,22 +166,21 @@ class Move(models.Model):
         return f"{self.creature.name} slot {self.slot}: {self.name}"
 
 
-class TeamSkill(models.Model):
-    class TraitCategory(models.TextChoices):
-        ELEMENT = "ELEMENT", "Element"
-        DIET = "DIET", "Diet"
-        LOCATION = "LOCATION", "Location"
-        ERA = "ERA", "Era"
+class TeamSkillGroup(models.Model):
+    number = models.PositiveSmallIntegerField(unique=True)
+    name = models.CharField(max_length=50)
 
+    def __str__(self):
+        return f"{self.number} - {self.name}"
+
+
+class TeamSkill(models.Model):
     creature = models.OneToOneField(Creature, on_delete=models.CASCADE, related_name="team_skill")
     name = models.CharField(max_length=100)
     damage = models.PositiveIntegerField(null=True, blank=True)
     fp_cost = models.PositiveIntegerField()
-    trait_category = models.CharField(max_length=10, choices=TraitCategory.choices)
-    trait_value = models.CharField(
-        max_length=100,
-        help_text="This specific value required across the whole team, e.g. 'Fire' or 'Carnivore'.",
-    )
+    group = models.ForeignKey("TeamSkillGroup", on_delete=models.PROTECT,
+                              related_name="team_skills")
 
     def __str__(self):
         return f"{self.creature.name}'s Team Skill: {self.name}"

@@ -1,11 +1,16 @@
 from django.contrib import admin
-from .models import Creature, Move, SupportEffect, SupportEffectStat, TeamSkill, PassiveSkill
+from .models import Creature, Move, SupportEffect, SupportEffectStat, TeamSkillGroup, TeamSkill, PassiveSkill
+
+
+@admin.register(TeamSkillGroup)
+class TeamSkillGroupAdmin(admin.ModelAdmin):
+    list_display = ("number", "name")
 
 
 @admin.register(TeamSkill)
 class TeamSkillAdmin(admin.ModelAdmin):
-    list_display = ("creature", "name", "damage", "fp_cost", "trait_category", "trait_value")
-    list_filter = ("trait_category",)
+    list_display = ("creature", "name", "damage", "fp_cost", "group")
+    list_filter = ("group",)
 
 
 class MoveInline(admin.TabularInline):
@@ -24,7 +29,9 @@ class CreatureAdmin(admin.ModelAdmin):
                     "diet", "size_category", "lp", "attack", "defense",
                     "accuracy", "evasion_speed", "crit_rate")
     list_filter = ("element", "creature_class", "group", "diet", "size_category")
+    filter_horizontal = ("team_skill_groups",)
     fields = (
+        "number",
         "name",
         "element",
         "genus",
@@ -34,6 +41,7 @@ class CreatureAdmin(admin.ModelAdmin):
         "length_m",
         "size_category",
         "diet",
+        "dig_site",
         "discovered_location",
         "creature_class",
         "lp",
@@ -42,7 +50,10 @@ class CreatureAdmin(admin.ModelAdmin):
         "accuracy",
         "evasion_speed",
         "crit_rate",
+        "status_resistance",
+        "sz_damage_multiplier",
         "sprite",
+        "team_skill_groups",
     )
     inlines = [MoveInline]
 
