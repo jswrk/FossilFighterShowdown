@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Creature, Move, SupportEffect, SupportEffectStat, TeamSkillGroup, TeamSkill, PassiveSkill
+from .models import Creature, Move, SupportEffect, TeamSkillGroup, PassiveSkill, DiscoveredLocation
 
 
 @admin.register(TeamSkillGroup)
@@ -7,43 +7,34 @@ class TeamSkillGroupAdmin(admin.ModelAdmin):
     list_display = ("number", "name")
 
 
-@admin.register(TeamSkill)
-class TeamSkillAdmin(admin.ModelAdmin):
-    list_display = ("creature", "name", "damage", "fp_cost", "group")
-    list_filter = ("group",)
-
-
 class MoveInline(admin.TabularInline):
     model = Move
     extra = 1
 
 
-class SupportEffectStatInline(admin.TabularInline):
-    model = SupportEffectStat
+class SupportEffectInline(admin.StackedInline):
+    model = SupportEffect
     extra = 1
 
 
 @admin.register(Creature)
 class CreatureAdmin(admin.ModelAdmin):
-    list_display = ("name", "genus", "element", "creature_class", "group",
+    list_display = ("name", "genus", "element", "creature_class",
                     "diet", "size_category", "lp", "attack", "defense",
                     "accuracy", "evasion_speed", "crit_rate")
-    list_filter = ("element", "creature_class", "group", "diet", "size_category")
-    filter_horizontal = ("team_skill_groups",)
+    list_filter = ("element", "creature_class", "diet", "size_category")
+    filter_horizontal = ("team_skill_groups", "discovered_locations",)
     fields = (
         "number",
         "name",
-        "element",
         "genus",
-        "group",
-        "era",
-        "length_ft",
-        "length_m",
+        "element",
+        "creature_class",
         "size_category",
         "diet",
+        "era",
         "dig_site",
-        "discovered_location",
-        "creature_class",
+        "discovered_locations",
         "lp",
         "attack",
         "defense",
@@ -55,16 +46,14 @@ class CreatureAdmin(admin.ModelAdmin):
         "sprite",
         "team_skill_groups",
     )
-    inlines = [MoveInline]
-
-
-@admin.register(SupportEffect)
-class SupportEffectAdmin(admin.ModelAdmin):
-    list_display = ("creature", "target")
-    list_filter = ("target",)
-    inlines = [SupportEffectStatInline]
+    inlines = [MoveInline, SupportEffectInline]
 
 
 @admin.register(PassiveSkill)
 class PassiveSkillAdmin(admin.ModelAdmin):
     list_display = ("creature", "name", "effect")
+
+
+@admin.register(DiscoveredLocation)
+class DiscoveredLocationAdmin(admin.ModelAdmin):
+    list_display = ("name",)

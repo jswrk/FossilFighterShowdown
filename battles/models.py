@@ -52,46 +52,17 @@ class Creature(models.Model):
         RIVET_RAVINE = "RIVET_RAVINE", "Rivet Ravine"
         SECRET_ISLAND = "SECRET_ISLAND", "Secret Island"
 
-    class DiscoveredLocation(models.TextChoices):
-        ANTARCTICA = "ANTARCTICA", "Antarctica"
-        ARGENTINA = "ARGENTINA", "Argentina"
-        AUSTRALIA = "AUSTRALIA", "Australia"
-        BELGIUM = "BELGIUM", "Belgium"
-        BRAZIL = "BRAZIL", "Brazil"
-        CANADA = "CANADA", "Canada"
-        CHINA = "CHINA", "China"
-        EGYPT = "EGYPT", "Egypt"
-        ENGLAND = "ENGLAND", "England"
-        FRANCE = "FRANCE", "France"
-        GERMANY = "GERMANY", "Germany"
-        JAPAN = "JAPAN", "Japan"
-        KAZAKHSTAN = "KAZAKHSTAN", "Kazakhstan"
-        MEXICO = "MEXICO", "Mexico"
-        MONGOLIA = "MONGOLIA", "Mongolia"
-        MOROCCO = "MOROCCO", "Morocco"
-        NIGERIA = "NIGERIA", "Nigeria"
-        PAKISTAN = "PAKISTAN", "Pakistan"
-        PORTUGAL = "PORTUGAL", "Portugal"
-        ROMANIA = "ROMANIA", "Romania"
-        RUSSIA = "RUSSIA", "Russia"
-        TANZANIA = "TANZANIA", "Tanzania"
-        THAILAND = "THAILAND", "Thailand"
-        TURKEY = "TURKEY", "Turkey"
-        USA = "USA", "U.S.A."
-
     number = models.PositiveSmallIntegerField(unique=True)
     name = models.CharField(max_length=100, unique=True)
-    element = models.CharField(max_length=20, choices=Element.choices)
     genus = models.CharField(max_length=100, blank=True)
-    group = models.CharField(max_length=50, blank=True)
-    era = models.CharField(max_length=30, choices=Era.choices)
-    length_ft = models.FloatField(null=True, blank=True)
-    length_m = models.FloatField(null=True, blank=True)
-    size_category = models.CharField(max_length=10, choices=SizeCategory.choices)
-    diet = models.CharField(max_length=20, choices=Diet.choices)
-    dig_site = models.CharField(max_length=25, choices=DigSite.choices)
-    discovered_location = models.CharField(max_length=15, choices=DiscoveredLocation.choices)
+    element = models.CharField(max_length=20, choices=Element.choices)
     creature_class = models.CharField(max_length=20, choices=Class.choices, verbose_name="Class")
+    size_category = models.CharField(max_length=10, choices=SizeCategory.choices)
+    diet = models.CharField(max_length=20, choices=Diet.choices, blank=True)
+    era = models.CharField(max_length=30, choices=Era.choices, blank=True)
+    dig_site = models.CharField(max_length=25, choices=DigSite.choices, blank=True)
+    discovered_locations = models.ManyToManyField(
+        "DiscoveredLocation", related_name="creatures", blank=True)
     team_skill_groups = models.ManyToManyField(
         "TeamSkillGroup", related_name="creatures", blank=True)
 
@@ -120,33 +91,23 @@ class SupportEffect(models.Model):
     creature = models.OneToOneField(Creature, on_delete=models.CASCADE,
                                     related_name="support_effect")
     target = models.CharField(max_length=10, choices=Target.choices)
+    attack_magnitude = models.IntegerField(
+        null=True, blank=True, help_text="Positive = Buff, negative = debuff. Blank = unaffected.")
+    defense_magnitude = models.IntegerField(
+        null=True, blank=True, help_text="Positive = Buff, negative = debuff. Blank = unaffected.")
+    accuracy_magnitude = models.IntegerField(
+        null=True, blank=True, help_text="Positive = Buff, negative = debuff. Blank = unaffected.")
+    evasion_speed_magnitude = models.IntegerField(
+        null=True, blank=True, help_text="Positive = Buff, negative = debuff. Blank = unaffected.")
 
     def __str__(self):
         return f"{self.creature.name}'s Support Effect ({self.get_target_display()})"
 
 
-class SupportEffectStat(models.Model):
-    class Stat(models.TextChoices):
-        ATTACK = "ATTACK", "Attack"
-        DEFENSE = "DEFENSE", "Defense"
-        ACCURACY = "ACCURACY", "Accuracy"
-        EVASION_SPEED = "EVASION_SPEED", "Evasion/Speed"
-
-    support_effect = models.ForeignKey(SupportEffect, on_delete=models.CASCADE,
-                                       related_name="stat_modifiers")
-    stat = models.CharField(max_length=20, choices=Stat.choices)
-    magnitude = models.IntegerField(help_text="Positive = buff, negative = debuff.")
-
-    class Meta:
-        unique_together = [("support_effect", "stat")]
-
-    def __str__(self):
-        return f"{self.get_stat_display()} {self.magnitude:+d}"
-
-
 class Move(models.Model):
     creature = models.ForeignKey(Creature, on_delete=models.CASCADE, related_name="moveset")
-    slot = models.PositiveSmallIntegerField(help_text="Skill slot order (1-4).")
+    slot = models.PositiveSmallIntegerField(
+        null=True, blank=True, help_text="Skill slot order (1-4). Blank for a Team Skill.")
 
     name = models.CharField(max_length=100)
     damage = models.PositiveIntegerField(null=True, blank=True)
@@ -157,6 +118,7 @@ class Move(models.Model):
         help_text="Percent change(0-100) the effect triggers. Blank if there's no effect."
     )
     counterable = models.BooleanField(default=False)
+    is_team_skill = models.BooleanField(default=False, verbose_name="Team Skill")
 
     class Meta:
         unique_together = [("creature", "slot"), ("creature", "name")]
@@ -166,24 +128,19 @@ class Move(models.Model):
         return f"{self.creature.name} slot {self.slot}: {self.name}"
 
 
+class DiscoveredLocation(models.Model):
+    name = models.CharField(max_length=20, unique=True)
+
+    def __str__(self):
+        return self.name
+
+
 class TeamSkillGroup(models.Model):
     number = models.PositiveSmallIntegerField(unique=True)
     name = models.CharField(max_length=50)
 
     def __str__(self):
         return f"{self.number} - {self.name}"
-
-
-class TeamSkill(models.Model):
-    creature = models.OneToOneField(Creature, on_delete=models.CASCADE, related_name="team_skill")
-    name = models.CharField(max_length=100)
-    damage = models.PositiveIntegerField(null=True, blank=True)
-    fp_cost = models.PositiveIntegerField()
-    group = models.ForeignKey("TeamSkillGroup", on_delete=models.PROTECT,
-                              related_name="team_skills")
-
-    def __str__(self):
-        return f"{self.creature.name}'s Team Skill: {self.name}"
 
 
 class PassiveSkill(models.Model):
