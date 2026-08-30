@@ -123,6 +123,13 @@ class Move(models.Model):
     class Meta:
         unique_together = [("creature", "slot"), ("creature", "name")]
         ordering = ["creature", "slot"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["creature"],
+                condition=models.Q(is_team_skill=True),
+                name="unique_team_skill_per_creature",
+            )
+        ]
 
     def __str__(self):
         return f"{self.creature.name} slot {self.slot}: {self.name}"
