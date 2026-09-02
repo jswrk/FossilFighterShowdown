@@ -1,6 +1,8 @@
 from django.db import models
 from django.conf import settings
 from django.core.exceptions import ValidationError
+import random
+import string
 
 
 class Creature(models.Model):
@@ -222,3 +224,89 @@ class TeamSlot(models.Model):
         if existing >= limits[self.role]:
             raise ValidationError(
                 f"A team can have at most {limits[self.role]} {self.role.lower()} creatures.")
+
+
+ROOM_CODE_CHARS = string.ascii_uppercase + string.digits
+
+
+def generate_room_code():
+    return "".join(random.choices(ROOM_CODE_CHARS, k=6))
+
+
+class BattleRoom(models.Model):
+    class Status(models.TextChoices):
+        WAITING = "WAITING", "Waiting"
+        ACTIVE = "ACTIVE", "Active"
+        FINISHED = "FINISHED", "Finished"
+
+    host = models.ForeignKey(settings.AUTH_USER_MODEL,
+                             on_delete=models.CASCADE, related_name="hosted_rooms")
+    guest = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+                              null=True, blank=True, related_name="joined_rooms")
+    host_team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name="hosted_rooms")
+    guest_team = models.ForeignKey(Team, on_delete=models.CASCADE,
+                                   null=True, blank=True, related_name="guested_rooms")
+    room_code = models.CharField(max_length=6, unique=True)
+    status = models.CharField(max_length=8, choices=Status.choices, default=Status.WAITING)
+    winner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+                               null=True, blank=True, related_name="won_rooms")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        guest_name = self.guest.username if self.guest else "waiting"
+        return f"{self.room_code}: {self.host.username} vs {guest_name}"
+
+    def save(self, *args, **kwargs):
+        if not self.room_code:
+            code = generate_room_code()
+            while BattleRoom.objects.filter(room_code=code).exists():
+                code = generate_room_code()
+            self.room_code = code
+        super().save(*args, **kwargs)
+
+    def finish(self, winner):
+        if winner not in (self.host, self.guest):
+            raise ValidationError("Winner must be the host or guest of this room.")
+
+        loser = self.guest if winner == self.host else self.host
+
+        self.winner = winner
+        self.status = self.Status.FINISHED
+        self.save()
+
+        winner.profile.wins += 1
+        winner.profile.save()
+        loser.profile.losses += 1
+        loser.profile.save()
+
+
+class BattleState(models.Model):
+    room = models.OneToOneField(BattleRoom, on_delete=models.CASCADE, related_name="state")
+    host_ez_turns_left = models.PositiveSmallIntegerField(null=True, blank=True)
+    guest_ez_turns_left = models.PositiveSmallIntegerField(null=True, blank=True)
+
+
+class BattleCreatureState(models.Model):
+    class Side(models.TextChoices):
+        HOST = "HOST", "Host"
+        GUEST = "GUEST", "Guest"
+
+    class Zone(models.TextChoices):
+        AZ = "AZ", "Attack Zone"
+        SZ1 = "SZ1", "Support Zone One"
+        SZ2 = "SZ2", "Support Zone Two"
+        EZ = "EZ", "Escape Zone"
+    battle_state = models.ForeignKey(
+        BattleState, on_delete=models.CASCADE, related_name="creature_states")
+    creature = models.ForeignKey(Creature, on_delete=models.CASCADE)
+    side = models.CharField(max_length=5, choices=Side.choices)
+    zone = models.CharField(max_length=20, choices=Zone.choices)
+    current_lp = models.PositiveIntegerField()
+    current_fp = models.PositiveIntegerField()
+    status_effect = models.CharField(max_length=100, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["battle_state", "side", "zone"],
+                                    name="unique_zone_per_side"),
+        ]

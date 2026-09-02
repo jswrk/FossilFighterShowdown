@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Creature, Move, SupportEffect, TeamSkillGroup, PassiveSkill, DiscoveredLocation, PlayerProfile, Team, TeamSlot
+from .models import Creature, Move, SupportEffect, TeamSkillGroup, PassiveSkill, DiscoveredLocation, PlayerProfile, Team, TeamSlot, BattleRoom, BattleState, BattleCreatureState
 
 
 class MoveInline(admin.TabularInline):
@@ -14,6 +14,11 @@ class TeamSlotInline(admin.TabularInline):
 
 class SupportEffectInline(admin.StackedInline):
     model = SupportEffect
+    extra = 1
+
+
+class BattleCreatureStateInline(admin.TabularInline):
+    model = BattleCreatureState
     extra = 1
 
 
@@ -73,3 +78,16 @@ class PlayerProfileAdmin(admin.ModelAdmin):
 class TeamAdmin(admin.ModelAdmin):
     list_display = ("name", "owner", "created_at")
     inlines = [TeamSlotInline]
+
+
+@admin.register(BattleRoom)
+class BattleRoomAdmin(admin.ModelAdmin):
+    list_display = ("room_code", "host", "guest", "status", "winner", "created_at")
+    list_filter = ("status",)
+    readonly_fields = ("room_code", "created_at")
+
+
+@admin.register(BattleState)
+class BattleStateAdmin(admin.ModelAdmin):
+    list_display = ("room", "host_ez_turns_left", "guest_ez_turns_left")
+    inlines = [BattleCreatureStateInline]
