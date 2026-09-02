@@ -1,4 +1,5 @@
 from django.db import models
+from django.conf import settings
 
 
 class Creature(models.Model):
@@ -158,3 +159,25 @@ class PassiveSkill(models.Model):
 
     def __str__(self):
         return f"{self.creature.name}'s Passive Skill: {self.name}"
+
+
+class PlayerProfile(models.Model):
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+                                related_name="profile")
+    display_name = models.CharField(max_length=50, blank=True)
+    bio = models.TextField(max_length=500, blank=True)
+    avatar = models.ImageField(upload_to="avatars/", blank=True, null=True)
+    favorite_creature = models.ForeignKey(
+        Creature, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="favorited_by"
+    )
+    wins = models.PositiveIntegerField(default=0)
+    losses = models.PositiveIntegerField(default=0)
+
+    @property
+    def win_rate(self):
+        total = self.wins + self.losses
+        return round(self.wins / total * 100, 1) if total else 0.0
+
+    def __str__(self):
+        return self.display_name or self.user.username

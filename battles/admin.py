@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Creature, Move, SupportEffect, TeamSkillGroup, PassiveSkill, DiscoveredLocation
+from .models import Creature, Move, SupportEffect, TeamSkillGroup, PassiveSkill, DiscoveredLocation, PlayerProfile
 
 
 @admin.register(TeamSkillGroup)
@@ -57,3 +57,8 @@ class PassiveSkillAdmin(admin.ModelAdmin):
 @admin.register(DiscoveredLocation)
 class DiscoveredLocationAdmin(admin.ModelAdmin):
     list_display = ("name",)
+
+
+@admin.register(PlayerProfile)
+class PlayerProfileAdmin(admin.ModelAdmin):
+    list_display = ("user", "display_name", "wins", "losses")
