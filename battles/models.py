@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings
+from django.core.exceptions import ValidationError
 
 
 class Creature(models.Model):
@@ -181,3 +182,43 @@ class PlayerProfile(models.Model):
 
     def __str__(self):
         return self.display_name or self.user.username
+
+
+class Team(models.Model):
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+                              related_name="teams")
+    name = models.CharField(max_length=50)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.name} ({self.owner.username})"
+
+
+class TeamSlot(models.Model):
+    class Role(models.TextChoices):
+        ACTIVE = "ACTIVE", "Active"
+        RESERVE = "RESERVE", "Reserve"
+
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name="slots")
+    creature = models.ForeignKey(Creature, on_delete=models.CASCADE, related_name="team_slots")
+    role = models.CharField(max_length=8, choices=Role.choices)
+    order = models.PositiveIntegerField()
+
+    class Meta:
+        ordering = ["team", "role", "order"]
+        constraints = [
+            models.UniqueConstraint(fields=["team", "creature"],
+                                    name="unique_creature_per_team"),
+            models.UniqueConstraint(fields=["team", "role", "order"],
+                                    name="unique_slot_order_per_team_role"),
+        ]
+
+    def clean(self):
+        if self.team_id is None:
+            return
+        limits = {"ACTIVE": 3, "RESERVE": 2}
+        existing = TeamSlot.objects.filter(team=self.team,
+                                           role=self.role).exclude(pk=self.pk).count()
+        if existing >= limits[self.role]:
+            raise ValidationError(
+                f"A team can have at most {limits[self.role]} {self.role.lower()} creatures.")

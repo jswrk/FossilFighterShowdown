@@ -1,10 +1,5 @@
 from django.contrib import admin
-from .models import Creature, Move, SupportEffect, TeamSkillGroup, PassiveSkill, DiscoveredLocation, PlayerProfile
-
-
-@admin.register(TeamSkillGroup)
-class TeamSkillGroupAdmin(admin.ModelAdmin):
-    list_display = ("number", "name")
+from .models import Creature, Move, SupportEffect, TeamSkillGroup, PassiveSkill, DiscoveredLocation, PlayerProfile, Team, TeamSlot
 
 
 class MoveInline(admin.TabularInline):
@@ -12,9 +7,19 @@ class MoveInline(admin.TabularInline):
     extra = 1
 
 
+class TeamSlotInline(admin.TabularInline):
+    model = TeamSlot
+    extra = 1
+
+
 class SupportEffectInline(admin.StackedInline):
     model = SupportEffect
     extra = 1
+
+
+@admin.register(TeamSkillGroup)
+class TeamSkillGroupAdmin(admin.ModelAdmin):
+    list_display = ("number", "name")
 
 
 @admin.register(Creature)
@@ -62,3 +67,9 @@ class DiscoveredLocationAdmin(admin.ModelAdmin):
 @admin.register(PlayerProfile)
 class PlayerProfileAdmin(admin.ModelAdmin):
     list_display = ("user", "display_name", "wins", "losses")
+
+
+@admin.register(Team)
+class TeamAdmin(admin.ModelAdmin):
+    list_display = ("name", "owner", "created_at")
+    inlines = [TeamSlotInline]
