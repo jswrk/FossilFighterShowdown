@@ -155,10 +155,26 @@ class TeamSkillGroup(models.Model):
 
 
 class PassiveSkill(models.Model):
+    class Name(models.TextChoices):
+        AUTO_COUNTER = "AUTO_COUNTER", "Auto Counter"
+        AUTO_LP_RECOVERY = "AUTO_LP_RECOVERY", "Auto LP Recovery"
+        FP_PLUS = "FP_PLUS", "FP Plus"
+        PARTING_BLOW = "PARTING_BLOW", "Parting Blow"
+        ZERO_SUPPORT = "ZERO_SUPPORT", "Zero Support"
+
     creature = models.OneToOneField(Creature, on_delete=models.CASCADE,
                                     related_name="passive_skill")
-    name = models.CharField(max_length=100)
+    name = models.CharField(max_length=20, choices=Name.choices)
     effect = models.CharField(max_length=200, blank=True)
+
+    # parting blow
+    attack_percent = models.IntegerField(null=True, blank=True)
+    defense_percent = models.IntegerField(null=True, blank=True)
+    accuracy_percent = models.IntegerField(null=True, blank=True)
+    evasion_speed_percent = models.IntegerField(null=True, blank=True)
+
+    # auto lp recovery
+    lp_recovery_percent = models.PositiveIntegerField(null=True, blank=True)
 
     def __str__(self):
         return f"{self.creature.name}'s Passive Skill: {self.name}"

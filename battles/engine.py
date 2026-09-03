@@ -1,3 +1,7 @@
+# constants
+PARTING_BLOW_LP_THRESHOLD_PERCENT = 10
+
+
 # returns true iff all 3 vivos share at least 1 TeamSkillGroup
 def team_skill_eligible(az_creature, sz1_creature, sz2_creature):
     az_groups = set(az_creature.team_skill_groups.all())
