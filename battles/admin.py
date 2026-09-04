@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Creature, Move, SupportEffect, TeamSkillGroup, PassiveSkill, DiscoveredLocation, PlayerProfile, Team, TeamSlot, BattleRoom, BattleState, BattleCreatureState
+from .models import Creature, Move, SupportEffect, StatusEffect, TeamSkillGroup, PassiveSkill, DiscoveredLocation, PlayerProfile, Team, TeamSlot, BattleRoom, BattleState, BattleCreatureState
 
 
 class MoveInline(admin.TabularInline):
@@ -62,6 +62,11 @@ class CreatureAdmin(admin.ModelAdmin):
 @admin.register(PassiveSkill)
 class PassiveSkillAdmin(admin.ModelAdmin):
     list_display = ("creature", "name", "effect")
+
+
+@admin.register(StatusEffect)
+class StatusEffectAdmin(admin.ModelAdmin):
+    list_display = ("name", "is_positive", "duration_turns")
 
 
 @admin.register(DiscoveredLocation)

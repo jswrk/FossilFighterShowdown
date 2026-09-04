@@ -81,6 +81,11 @@ class Creature(models.Model):
     sz_damage_multiplier = models.FloatField(
         help_text="Multiplier applied to this creature's Attack while in a Support Zone.")
 
+    status_immune = models.BooleanField(
+        default=False,
+        help_text="Immune to all status effects except Confuse/Super Confuse. Currently only Dinomaton."
+    )
+
     sprite = models.ImageField(upload_to="creatures/", blank=True, null=True)
 
     def __str__(self):
@@ -108,6 +113,46 @@ class SupportEffect(models.Model):
         return f"{self.creature.name}'s Support Effect ({self.get_target_display()})"
 
 
+class StatusEffect(models.Model):
+    class Name(models.TextChoices):
+        POISON = "POISON", "Poison"
+        SUPER_POISON = "SUPER_POISON", "Super Poison"
+        VENOM = "VENOM", "Venom"
+        SLEEP = "SLEEP", "Sleep"
+        SUPER_SLEEP = "SUPER_SLEEP", "Super Sleep"
+        SCARE = "SCARE", "Scare"
+        SUPER_SCARE = "SUPER_SCARE", "Super Scare"
+        EXCITE = "EXCITE", "Excite"
+        SUPER_EXCITE = "SUPER_EXCITE", "Super Excite"
+        CONFUSE = "CONFUSE", "Confuse"
+        SUPER_CONFUSE = "SUPER_CONFUSE", "Super Confuse"
+        ENRAGE = "ENRAGE", "Enrage"
+        SUPER_ENRAGE = "SUPER_ENRAGE", "Super Enrage"
+        ENFLAME = "ENFLAME", "Enflame"
+        SUPER_ENFLAME = "SUPER_ENFLAME", "Super Enflame"
+        HARDEN = "HARDEN", "Harden"
+        SUPER_HARDEN = "SUPER_HARDEN", "Super Harden"
+        QUICKEN = "QUICKEN", "Quicken"
+        SUPER_QUICKEN = "SUPER_QUICKEN", "Super Quicken"
+        COUNTER = "COUNTER", "Counter"
+        SUPER_COUNTER = "SUPER_COUNTER", "Super Counter"
+
+    name = models.CharField(max_length=20, choices=Name.choices, unique=True)
+    is_positive = models.BooleanField()
+    duration_turns = models.PositiveSmallIntegerField()
+
+    lp_damage_percent = models.PositiveIntegerField(null=True, blank=True)
+    skills_disabled = models.PositiveSmallIntegerField(null=True, blank=True)
+    attack_points = models.IntegerField(null=True, blank=True)
+    defense_points = models.IntegerField(null=True, blank=True)
+    accuracy_points = models.IntegerField(null=True, blank=True)
+    evasion_speed_percent = models.IntegerField(null=True, blank=True)
+    counter_reflect_percent = models.PositiveIntegerField(null=True, blank=True)
+
+    def __str__(self):
+        return self.get_name_display()
+
+
 class Move(models.Model):
     creature = models.ForeignKey(Creature, on_delete=models.CASCADE, related_name="moveset")
     slot = models.PositiveSmallIntegerField(
@@ -123,6 +168,8 @@ class Move(models.Model):
     )
     counterable = models.BooleanField(default=False)
     is_team_skill = models.BooleanField(default=False, verbose_name="Team Skill")
+    inflicts_status = models.ForeignKey(
+        StatusEffect, null=True, blank=True, on_delete=models.SET_NULL, related_name="inflicting_moves")
 
     class Meta:
         unique_together = [("creature", "slot"), ("creature", "name")]
@@ -319,7 +366,9 @@ class BattleCreatureState(models.Model):
     zone = models.CharField(max_length=20, choices=Zone.choices)
     current_lp = models.PositiveIntegerField()
     current_fp = models.PositiveIntegerField()
-    status_effect = models.CharField(max_length=100, blank=True)
+    active_status = models.ForeignKey(
+        StatusEffect, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    status_turns_remaining = models.PositiveSmallIntegerField(null=True, blank=True)
 
     class Meta:
         constraints = [
