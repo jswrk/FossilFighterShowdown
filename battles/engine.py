@@ -1,5 +1,5 @@
 import random
-from .models import PassiveSkill, SupportEffect, BattleCreatureState, Creature
+from .models import PassiveSkill, SupportEffect, StatusEffect, BattleCreatureState, Creature
 
 # constants
 PARTING_BLOW_LP_THRESHOLD_PERCENT = 10
@@ -49,6 +49,42 @@ def calculate_damage(attacker_state, defender_state, move):
 
     damage = base * random_multiplier * element_multiplier * range_multiplier * crit_multiplier
     return max(0, round(damage))
+
+
+# apples/refreshes status effect
+def apply_status(creature_state, status):
+    confuse_names = (StatusEffect.Name.CONFUSE, StatusEffect.Name.SUPER_CONFUSE)
+    if creature_state.creature.status_immune and status.name not in confuse_names:
+        return
+
+    creature_state.active_status = status
+    creature_state.status_turns_remaining = status.duration_turns
+    creature_state.save(update_fields=["active_status", "status_turns_remaining"])
+
+
+def tick_status(creature_state):
+    if creature_state.active_status is None:
+        return
+
+    creature_state.status_turns_remaining -= 1
+
+    if creature_state.status_turns_remaining <= 0:
+        cure_status(creature_state)
+        return
+
+    creature_state.save(update_fields=["active_status", 'status_turns_remaining'])
+
+
+def cure_status(creature_state):
+    if creature_state.active_status is None:
+        return
+
+    creature_state.active_status = None
+    creature_state.status_turns_remaining = None
+    creature_state.save(update_fields=["active_status", "status_turns_remaining"])
+
+
+'''helper functions'''
 
 
 # parting blow validation helper
