@@ -1,5 +1,5 @@
 import random
-from .models import PassiveSkill, SupportEffect, StatusEffect, BattleCreatureState, Creature
+from .models import PassiveSkill, SupportEffect, StatusEffect, Move, BattleCreatureState, Creature
 
 # constants
 PARTING_BLOW_LP_THRESHOLD_PERCENT = 10
@@ -62,6 +62,7 @@ def apply_status(creature_state, status):
     creature_state.save(update_fields=["active_status", "status_turns_remaining"])
 
 
+# status effect timer
 def tick_status(creature_state):
     if creature_state.active_status is None:
         return
@@ -75,6 +76,7 @@ def tick_status(creature_state):
     creature_state.save(update_fields=["active_status", 'status_turns_remaining'])
 
 
+# cures status effect
 def cure_status(creature_state):
     if creature_state.active_status is None:
         return
@@ -82,6 +84,29 @@ def cure_status(creature_state):
     creature_state.active_status = None
     creature_state.status_turns_remaining = None
     creature_state.save(update_fields=["active_status", "status_turns_remaining"])
+
+
+# link move chance roll
+def maybe_trigger_link(actor_state):
+    if actor_state.zone != BattleCreatureState.Zone.AZ:
+        return []
+
+    sz_allies = actor_state.battle_state.creature_states.filter(
+        side=actor_state.side,
+        zone__in=[BattleCreatureState.Zone.SZ1, BattleCreatureState.Zone.SZ2]
+    )
+
+    triggered = []
+
+    for ally_state in sz_allies:
+        link_move = ally_state.creature.moveset.filter(is_link_skill=True).first()
+        if link_move is None:
+            continue
+
+        if random.randint(1, 100) <= link_move.link_chance_percent:
+            triggered.append((ally_state, link_move))
+
+    return triggered
 
 
 '''helper functions'''
