@@ -154,6 +154,21 @@ class StatusEffect(models.Model):
 
 
 class Move(models.Model):
+    class SecondaryEffect(models.TextChoices):
+        ATTACK_AZ_AND_SZ = "ATTACK_AZ_AND_SZ", "Attack AZ and SZ"
+        SWAP_ZONES = "SWAP_ZONES", "Swap Zones"
+        TRANSFORMS = "TRANSFORMS", "Transforms"
+        ELIMINATE_ALL_EFFECTS = "ELIMINATE_ALL_EFFECTS", "Eliminate All Effects"
+        EQUALIZE_FP = "EQUALIZE_FP", "Equalize FP"
+        RECOVER_ALL_ALLIES_LP = "RECOVER_ALL_ALLIES_LP", "Recover All Allies' LP"
+        RECOVER_ONE_ALLY_LP = "RECOVER_ONE_ALLY_LP", "Recover One Ally's LP"
+        GIVE_LP_TO_ALLIES = "GIVE_LP_TO_ALLIES", "Give LP to Allies"
+        KNOCK_TO_EZ = "KNOCK_TO_EZ", "Knock to EZ"
+        LOSE_LP_FOR_DAMAGE = "LOSE_LP_FOR_DAMAGE", "Lose LP for Damage"
+        STEAL_FP = "STEAL_FP", "Steal FP"
+        STEAL_LP_EQUAL_TO_DAMAGE = "STEAL_LP_EQUAL_TO_DAMAGE", "Steal LP Equal to Damage"
+        RECOVER_LP_USING_ALLY_LP = "RECOVER_LP_USING_ALLY_LP", "Recover LP Using Ally LP"
+
     creature = models.ForeignKey(Creature, on_delete=models.CASCADE, related_name="moveset")
     slot = models.PositiveSmallIntegerField(
         null=True, blank=True, help_text="Skill slot order (1-4). Blank for a Team Skill.")
@@ -161,15 +176,35 @@ class Move(models.Model):
     name = models.CharField(max_length=100)
     damage = models.PositiveIntegerField(null=True, blank=True)
     fp_cost = models.PositiveIntegerField()
-    effect = models.CharField(max_length=200, blank=True)
-    effect_success_rate = models.PositiveIntegerField(
+    status_success_rate = models.PositiveIntegerField(
         null=True, blank=True,
-        help_text="Percent change(0-100) the effect triggers. Blank if there's no effect."
+        help_text="Percent change(0-100) the inflicts_status triggers. Blank if there's no effect."
     )
+    max_hits = models.PositiveSmallIntegerField(
+        choices=[(1, "1"), (2, "2"), (3, "3")], default=1)
     counterable = models.BooleanField(default=False)
     is_team_skill = models.BooleanField(default=False, verbose_name="Team Skill")
+    is_link_skill = models.BooleanField(default=False, verbose_name="Link Skill")
+    link_chance_percent = models.PositiveIntegerField(
+        null=True, blank=True,
+        help_text="Percent chance (0-100) this Link activates when the AZ ally attacks. Blank unless is_link_skill=True."
+    )
     inflicts_status = models.ForeignKey(
         StatusEffect, null=True, blank=True, on_delete=models.SET_NULL, related_name="inflicting_moves")
+    secondary_effect = models.CharField(
+        max_length=30, choices=SecondaryEffect.choices, blank=True)
+    secondary_effect_magnitude = models.PositiveIntegerField(
+        null=True, blank=True,
+        help_text="The {n} value for secondary effects that need one. Blank otherwise."
+    )
+    secondary_effect_success_rate = models.PositiveIntegerField(
+        null=True, blank=True,
+        help_text="Percent chance (0-100) secondary_effect triggers. Blank if there's no secondary effect."
+    )
+    transforms_into = models.ManyToManyField(
+        Creature, blank=True, related_name="transform_source",
+        help_text="Only used when secondary_effect=TRANSFORMS, and only valid on a Transformation-Class creature's move. One entry = fixed transformation; multiple = random pool."
+    )
 
     class Meta:
         unique_together = [("creature", "slot"), ("creature", "name")]
@@ -179,8 +214,18 @@ class Move(models.Model):
                 fields=["creature"],
                 condition=models.Q(is_team_skill=True),
                 name="unique_team_skill_per_creature",
+            ),
+            models.UniqueConstraint(
+                fields=["creature"],
+                condition=models.Q(is_link_skill=True),
+                name="unique_link_skill_per_creature"
             )
         ]
+
+    def clean(self):
+        if self.secondary_effect == self.SecondaryEffect.TRANSFORMS and self.creature.creature_class != Creature.Class.TRANSFORMATION:
+            raise ValidationError(
+                "Only a Transformation-Class creature's move can use the TRANSFORMS secondary effect.")
 
     def __str__(self):
         return f"{self.creature.name} slot {self.slot}: {self.name}"
