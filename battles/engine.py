@@ -23,6 +23,17 @@ def legal_team_skill_moves(az_creature, sz1_creature, sz2_creature):
     return az_creature.moveset.filter(is_team_skill=True)
 
 
+# fp check
+def is_move_legal(actor_state, move):
+    return actor_state.current_fp >= move.fp_cost
+
+
+# fp deduction
+def spend_fp(actor_state, move):
+    actor_state.current_fp = max(0, actor_state.current_fp - move.fp_cost)
+    actor_state.save(update_fields=["current_fp"])
+
+
 # damage calculaiton
 def calculate_damage(attacker_state, defender_state, move):
     if move.damage is None:
@@ -107,6 +118,23 @@ def maybe_trigger_link(actor_state):
             triggered.append((ally_state, link_move))
 
     return triggered
+
+
+# single hit damage & status infliction
+def resolve_hit(attacker_state, defender_state, move):
+    damage = calculate_damage(attacker_state, defender_state, move)
+
+    defender_state.current_lp = max(0, defender_state.current_lp - damage)
+    defender_state.save(update_fields=["current_lp"])
+
+    if move.inflicts_status is not None:
+        status_attempted = random.randint(1, 100) <= move.status_success_rate
+        if status_attempted:
+            status_resisted = random.randint(1, 100) <= defender_state.creature.status_resistance
+            if not status_resisted:
+                apply_status(defender_state, move.inflicts_status)
+
+    return damage
 
 
 '''helper functions'''
