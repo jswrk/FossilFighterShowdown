@@ -226,6 +226,10 @@ class Move(models.Model):
         if self.secondary_effect == self.SecondaryEffect.TRANSFORMS and self.creature.creature_class != Creature.Class.TRANSFORMATION:
             raise ValidationError(
                 "Only a Transformation-Class creature's move can use the TRANSFORMS secondary effect.")
+        if self.inflicts_status and self.status_success_rate is None:
+            raise ValidationError("status_success_rate is required when inflicts_status is set.")
+        if self.status_success_rate is not None and self.inflicts_status is None:
+            raise ValidationError("status_success_rate requires inflicts_status to be set.")
 
     def __str__(self):
         return f"{self.creature.name} slot {self.slot}: {self.name}"

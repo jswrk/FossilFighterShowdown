@@ -8,6 +8,11 @@ ELEMENT_CYCLE = [Creature.Element.FIRE, Creature.Element.EARTH,
 CRITICAL_HIT_MULTIPLIER = 1.5
 
 
+# exceptions
+class IllegalMoveError(Exception):
+    pass
+
+
 # returns true iff all 3 vivos share at least 1 TeamSkillGroup
 def team_skill_eligible(az_creature, sz1_creature, sz2_creature):
     az_groups = set(az_creature.team_skill_groups.all())
@@ -135,6 +140,27 @@ def resolve_hit(attacker_state, defender_state, move):
                 apply_status(defender_state, move.inflicts_status)
 
     return damage
+
+
+# multi hit move execution
+def execute_move(attacker_state, defender_state, move):
+    if not is_move_legal(attacker_state, move):
+        raise IllegalMoveError(
+            f"{attacker_state.creature.name} cannot afford {move.name} "
+            f"(needs {move.fp_cost} FP, has {attacker_state.current_fp})"
+        )
+
+    spend_fp(attacker_state, move)
+
+    hits = []
+
+    for hit in range(move.max_hits):
+        damage = resolve_hit(attacker_state, defender_state, move)
+        hits.append(damage)
+        if defender_state.current_lp <= 0:
+            break
+
+    return hits
 
 
 '''helper functions'''
