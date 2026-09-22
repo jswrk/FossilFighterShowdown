@@ -13,6 +13,10 @@ class IllegalMoveError(Exception):
     pass
 
 
+class EmptyTransformPoolError(Exception):
+    pass
+
+
 # returns true iff all 3 vivos share at least 1 TeamSkillGroup
 def team_skill_eligible(az_creature, sz1_creature, sz2_creature):
     az_groups = set(az_creature.team_skill_groups.all())
@@ -102,6 +106,44 @@ def cure_status(creature_state):
     creature_state.save(update_fields=["active_status", "status_turns_remaining"])
 
 
+# vivo transformation
+def transform(creature_state, move):
+    pool = list(move.transforms_into.all())
+
+    if not pool:
+        raise EmptyTransformPoolError(
+            f"{move.name} has TRANSFORMS but no transforms_into creatures.")
+
+    new_creature = random.choice(pool)
+
+    creature_state.creature = new_creature
+    creature_state.current_lp = new_creature.lp
+
+    creature_state.active_status = None
+    creature_state.status_turns_remaining = None
+
+    creature_state.save(update_fields=["creature", "current_lp",
+                        "active_status", "status_turns_remaining"])
+
+    return new_creature
+
+
+# secondary effect
+def apply_secondary_effect(attacker_state, defender_state, move):
+    if not move.secondary_effect:
+        return None
+
+    roll_succeeded = random.randint(1, 100) <= move.secondary_effect_success_rate
+
+    if not roll_succeeded:
+        return None
+
+    if move.secondary_effect == Move.SecondaryEffect.TRANSFORMS:
+        return transform(attacker_state, move)
+
+    return None
+
+
 # link move chance roll
 def trigger_link_roll(actor_state):
     if actor_state.zone != BattleCreatureState.Zone.AZ:
@@ -142,7 +184,7 @@ def resolve_hit(attacker_state, defender_state, move):
     return damage
 
 
-# multi hit move execution + link follow-up
+# multi hit move execution + secondary effect + link follow-up
 def execute_move(attacker_state, defender_state, move):
     if not is_move_legal(attacker_state, move):
         raise IllegalMoveError(
@@ -160,6 +202,8 @@ def execute_move(attacker_state, defender_state, move):
         if defender_state.current_lp <= 0:
             break
 
+    secondary_result = apply_secondary_effect(attacker_state, defender_state, move)
+
     link_hits = []
 
     if defender_state.current_lp > 0:
@@ -168,7 +212,7 @@ def execute_move(attacker_state, defender_state, move):
                 break
             link_hits.append((ally_state, resolve_hit(ally_state, defender_state, link_move)))
 
-    return {"hits": hits, "link_hits": link_hits}
+    return {"hits": hits, "secondary_effect": secondary_result, "link_hits": link_hits}
 
 
 '''helper functions'''

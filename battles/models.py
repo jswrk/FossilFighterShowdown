@@ -232,6 +232,12 @@ class Move(models.Model):
             raise ValidationError("status_success_rate requires inflicts_status to be set.")
         if self.is_link_skill and self.max_hits != 1:
             raise ValidationError("A Link Skill move must have max_hits = 1.")
+        if self.secondary_effect and self.secondary_effect_success_rate is None:
+            raise ValidationError(
+                "secondary_effect_success_rate is required when secondary_effect is set.")
+        if self.secondary_effect_success_rate is not None and not self.secondary_effect:
+            raise ValidationError(
+                "secondary_effect_success_rate requires secondary_effect to be set.")
 
     def __str__(self):
         return f"{self.creature.name} slot {self.slot}: {self.name}"
