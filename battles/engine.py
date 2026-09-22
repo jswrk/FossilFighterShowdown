@@ -103,7 +103,7 @@ def cure_status(creature_state):
 
 
 # link move chance roll
-def maybe_trigger_link(actor_state):
+def trigger_link_roll(actor_state):
     if actor_state.zone != BattleCreatureState.Zone.AZ:
         return []
 
@@ -142,7 +142,7 @@ def resolve_hit(attacker_state, defender_state, move):
     return damage
 
 
-# multi hit move execution
+# multi hit move execution + link follow-up
 def execute_move(attacker_state, defender_state, move):
     if not is_move_legal(attacker_state, move):
         raise IllegalMoveError(
@@ -160,7 +160,15 @@ def execute_move(attacker_state, defender_state, move):
         if defender_state.current_lp <= 0:
             break
 
-    return hits
+    link_hits = []
+
+    if defender_state.current_lp > 0:
+        for ally_state, link_move in trigger_link_roll(attacker_state):
+            if defender_state.current_lp <= 0:
+                break
+            link_hits.append((ally_state, resolve_hit(ally_state, defender_state, link_move)))
+
+    return {"hits": hits, "link_hits": link_hits}
 
 
 '''helper functions'''
