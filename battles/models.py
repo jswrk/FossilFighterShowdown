@@ -269,7 +269,12 @@ class PassiveSkill(models.Model):
     creature = models.OneToOneField(Creature, on_delete=models.CASCADE,
                                     related_name="passive_skill")
     name = models.CharField(max_length=20, choices=Name.choices)
-    effect = models.CharField(max_length=200, blank=True)
+
+    # auto lp recovery
+    lp_recovery_percent = models.PositiveIntegerField(null=True, blank=True)
+
+    # fp plus
+    fp_plus_percent = models.PositiveIntegerField(null=True, blank=True)
 
     # parting blow
     attack_percent = models.IntegerField(null=True, blank=True)
@@ -277,8 +282,11 @@ class PassiveSkill(models.Model):
     accuracy_percent = models.IntegerField(null=True, blank=True)
     evasion_speed_percent = models.IntegerField(null=True, blank=True)
 
-    # auto lp recovery
-    lp_recovery_percent = models.PositiveIntegerField(null=True, blank=True)
+    def clean(self):
+        if self.name == self.Name.FP_PLUS and self.fp_plus_percent is None:
+            raise ValidationError("fp_plus_percent is required when name is FP Plus.")
+        if self.fp_plus_percent is not None and self.name != self.Name.FP_PLUS:
+            raise ValidationError("fp_plus_percent requires name to be FP Plus.")
 
     def __str__(self):
         return f"{self.creature.name}'s Passive Skill: {self.name}"
@@ -404,6 +412,8 @@ class BattleState(models.Model):
     room = models.OneToOneField(BattleRoom, on_delete=models.CASCADE, related_name="state")
     host_ez_turns_left = models.PositiveSmallIntegerField(null=True, blank=True)
     guest_ez_turns_left = models.PositiveSmallIntegerField(null=True, blank=True)
+    host_fp = models.PositiveIntegerField(default=0)
+    guest_fp = models.PositiveIntegerField(default=0)
 
 
 class BattleCreatureState(models.Model):
@@ -422,7 +432,6 @@ class BattleCreatureState(models.Model):
     side = models.CharField(max_length=5, choices=Side.choices)
     zone = models.CharField(max_length=20, choices=Zone.choices)
     current_lp = models.PositiveIntegerField()
-    current_fp = models.PositiveIntegerField()
     active_status = models.ForeignKey(
         StatusEffect, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
     status_turns_remaining = models.PositiveSmallIntegerField(null=True, blank=True)

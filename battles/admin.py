@@ -17,6 +17,11 @@ class SupportEffectInline(admin.StackedInline):
     extra = 1
 
 
+class PassiveSkillInline(admin.StackedInline):
+    model = PassiveSkill
+    extra = 1
+
+
 class BattleCreatureStateInline(admin.TabularInline):
     model = BattleCreatureState
     extra = 1
@@ -56,12 +61,12 @@ class CreatureAdmin(admin.ModelAdmin):
         "sprite",
         "team_skill_groups",
     )
-    inlines = [MoveInline, SupportEffectInline]
+    inlines = [MoveInline, SupportEffectInline, PassiveSkillInline]
 
 
 @admin.register(PassiveSkill)
 class PassiveSkillAdmin(admin.ModelAdmin):
-    list_display = ("creature", "name", "effect")
+    list_display = ("creature", "name")
 
 
 @admin.register(StatusEffect)
@@ -94,5 +99,5 @@ class BattleRoomAdmin(admin.ModelAdmin):
 
 @admin.register(BattleState)
 class BattleStateAdmin(admin.ModelAdmin):
-    list_display = ("room", "host_ez_turns_left", "guest_ez_turns_left")
+    list_display = ("room", "host_ez_turns_left", "guest_ez_turns_left", "host_fp", "guest_fp")
     inlines = [BattleCreatureStateInline]

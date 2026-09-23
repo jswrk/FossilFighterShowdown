@@ -6,6 +6,8 @@ PARTING_BLOW_LP_THRESHOLD_PERCENT = 10
 ELEMENT_CYCLE = [Creature.Element.FIRE, Creature.Element.EARTH,
                  Creature.Element.AIR, Creature.Element.WATER]
 CRITICAL_HIT_MULTIPLIER = 1.5
+FP_RECHARGE = 180  # lvl 7/master value
+MAX_FP = 500  # lvl 7/master value
 
 
 # exceptions
@@ -34,16 +36,24 @@ def legal_team_skill_moves(az_creature, sz1_creature, sz2_creature):
 
 # fp check
 def is_move_legal(actor_state, move):
-    return actor_state.current_fp >= move.fp_cost
+    return _get_fp_pool(actor_state.battle_state, actor_state.side) >= move.fp_cost
 
 
 # fp deduction
 def spend_fp(actor_state, move):
-    actor_state.current_fp = max(0, actor_state.current_fp - move.fp_cost)
-    actor_state.save(update_fields=["current_fp"])
+    pool = _get_fp_pool(actor_state.battle_state, actor_state.side)
+    _set_fp_pool(actor_state.battle_state, actor_state.side, pool - move.fp_cost)
 
 
-# damage calculaiton
+# fp recharge calculation
+def recharge_fp(battle_state, side):
+    gain = FP_RECHARGE * (100 + _fp_plus_bonus(battle_state, side)) // 100
+    pool = _get_fp_pool(battle_state, side)
+    new_pool = _set_fp_pool(battle_state, side, pool + gain)
+    return new_pool - pool
+
+
+# damage calculation
 def calculate_damage(attacker_state, defender_state, move):
     if move.damage is None:
         return 0
@@ -189,7 +199,7 @@ def execute_move(attacker_state, defender_state, move):
     if not is_move_legal(attacker_state, move):
         raise IllegalMoveError(
             f"{attacker_state.creature.name} cannot afford {move.name} "
-            f"(needs {move.fp_cost} FP, has {attacker_state.current_fp})"
+            f"(needs {move.fp_cost} FP, pool has {_get_fp_pool(attacker_state.battle_state, attacker_state.side)})"
         )
 
     spend_fp(attacker_state, move)
@@ -305,3 +315,43 @@ def _random_multiplier():
 # crit multiplier helper
 def _crit_multiplier(crit_rate):
     return CRITICAL_HIT_MULTIPLIER if random.randint(1, 100) <= crit_rate else 1.0
+
+
+# fp pool getter
+def _get_fp_pool(battle_state, side):
+    field = _fp_pool_field(side)
+    battle_state.refresh_from_db(fields=[field])
+    return getattr(battle_state, field)
+
+
+# fp pool setter
+def _set_fp_pool(battle_state, side, value):
+    field = _fp_pool_field(side)
+    value = max(0, min(MAX_FP, value))
+    setattr(battle_state, field, value)
+    battle_state.save(update_fields=[field])
+    return value
+
+
+# fp pool helper
+def _fp_pool_field(side):
+    return f"{side.lower()}_fp"
+
+
+# fp plus helper
+def _fp_plus_bonus(battle_state, side):
+    total = 0
+    alive_states = battle_state.creature_states.filter(side=side, current_lp__gt=0)
+
+    for creature_state in alive_states:
+        try:
+            skill = creature_state.creature.passive_skill
+        except PassiveSkill.DoesNotExist:
+            continue
+
+        if skill.name != PassiveSkill.Name.FP_PLUS or skill.fp_plus_percent is None:
+            continue
+
+        total += skill.fp_plus_percent
+
+    return total
