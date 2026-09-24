@@ -171,7 +171,8 @@ class Move(models.Model):
 
     creature = models.ForeignKey(Creature, on_delete=models.CASCADE, related_name="moveset")
     slot = models.PositiveSmallIntegerField(
-        null=True, blank=True, help_text="Skill slot order (1-4). Blank for a Team Skill.")
+        help_text="Display order across all of this creature's moves (regular, Team and Link Skills). No effect in battle."
+    )
 
     name = models.CharField(max_length=100)
     damage = models.PositiveIntegerField(null=True, blank=True)
@@ -409,23 +410,27 @@ class BattleRoom(models.Model):
 
 
 class BattleState(models.Model):
+    class Side(models.TextChoices):
+        HOST = "HOST", "Host"
+        GUEST = "GUEST", "Guest"
+
     room = models.OneToOneField(BattleRoom, on_delete=models.CASCADE, related_name="state")
     host_ez_turns_left = models.PositiveSmallIntegerField(null=True, blank=True)
     guest_ez_turns_left = models.PositiveSmallIntegerField(null=True, blank=True)
     host_fp = models.PositiveIntegerField(default=0)
     guest_fp = models.PositiveIntegerField(default=0)
+    active_side = models.CharField(max_length=5, choices=Side.choices, null=True,
+                                   blank=True)
 
 
 class BattleCreatureState(models.Model):
-    class Side(models.TextChoices):
-        HOST = "HOST", "Host"
-        GUEST = "GUEST", "Guest"
-
     class Zone(models.TextChoices):
         AZ = "AZ", "Attack Zone"
         SZ1 = "SZ1", "Support Zone One"
         SZ2 = "SZ2", "Support Zone Two"
         EZ = "EZ", "Escape Zone"
+
+    Side = BattleState.Side
     battle_state = models.ForeignKey(
         BattleState, on_delete=models.CASCADE, related_name="creature_states")
     creature = models.ForeignKey(Creature, on_delete=models.CASCADE)

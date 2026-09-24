@@ -99,5 +99,6 @@ class BattleRoomAdmin(admin.ModelAdmin):
 
 @admin.register(BattleState)
 class BattleStateAdmin(admin.ModelAdmin):
-    list_display = ("room", "host_ez_turns_left", "guest_ez_turns_left", "host_fp", "guest_fp")
+    list_display = ("room", "host_ez_turns_left", "guest_ez_turns_left",
+                    "host_fp", "guest_fp", "active_side")
     inlines = [BattleCreatureStateInline]
