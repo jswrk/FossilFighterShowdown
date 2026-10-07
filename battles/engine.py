@@ -161,7 +161,8 @@ def trigger_link_roll(actor_state):
 
     sz_allies = actor_state.battle_state.creature_states.filter(
         side=actor_state.side,
-        zone__in=[BattleCreatureState.Zone.SZ1, BattleCreatureState.Zone.SZ2]
+        zone__in=[BattleCreatureState.Zone.SZ1, BattleCreatureState.Zone.SZ2],
+        current_lp__gt=0
     )
 
     triggered = []
@@ -258,7 +259,9 @@ def _support_magnitude(creature_state, magnitude_field):
 
     total = 0
     sz_states = creature_state.battle_state.creature_states.filter(
-        zone__in=[BattleCreatureState.Zone.SZ1, BattleCreatureState.Zone.SZ2])
+        zone__in=[BattleCreatureState.Zone.SZ1, BattleCreatureState.Zone.SZ2],
+        current_lp__gt=0
+    )
 
     for sz_state in sz_states:
         try:

@@ -3,7 +3,7 @@ from django.test import TestCase
 
 from . import engine
 from .models import (BattleCreatureState, BattleRoom, BattleState,
-                     Creature, Move, PassiveSkill, Team)
+                     Creature, Move, PassiveSkill, SupportEffect, Team)
 
 HOST = BattleCreatureState.Side.HOST
 GUEST = BattleCreatureState.Side.GUEST
@@ -154,3 +154,41 @@ class RechargeFPTests(FPTestBase):
         self.assertEqual(engine.recharge_fp(self.bs, HOST), 100)
         self.assertEqual(self._pool(HOST), engine.MAX_FP)
         self.assertEqual(engine.recharge_fp(self.bs, HOST), 0)
+
+
+class KnockedOutSZTests(FPTestBase):
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.enemy_support = make_creature(4, "Enemy Support")
+        SupportEffect.objects.create(creature=cls.ally, target=SupportEffect.Target.SELF_AZ,
+                                     attack_magnitude=20)
+        SupportEffect.objects.create(creature=cls.enemy_support,
+                                     target=SupportEffect.Target.ENEMY_AZ, attack_magnitude=-30)
+
+    def setUp(self):
+        super().setUp()
+        self.enemy_sz = self._place(self.enemy_support, GUEST, Zone.SZ1)
+
+    def _ko(self, state):
+        state.current_lp = 0
+        state.save()
+
+    def _attack_support(self):
+        return engine._support_multiplier(self.az, "attack_magnitude")
+
+    def test_alive_sz_support_applies_from_both_sides(self):
+        self.assertAlmostEqual(self._attack_support(), 0.9)
+
+    def test_ko_own_sz_drops_its_buff(self):
+        self._ko(self.sz)
+        self.assertAlmostEqual(self._attack_support(), 0.7)
+
+    def test_ko_enemy_sz_drops_its_debuff(self):
+        self._ko(self.enemy_sz)
+        self.assertAlmostEqual(self._attack_support(), 1.2)
+
+    def test_ko_link_holder_does_not_proc(self):
+        self.assertEqual(len(engine.trigger_link_roll(self.az)), 1)
+        self._ko(self.sz)
+        self.assertEqual(engine.trigger_link_roll(self.az), [])
