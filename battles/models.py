@@ -440,6 +440,7 @@ class BattleCreatureState(models.Model):
     active_status = models.ForeignKey(
         StatusEffect, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
     status_turns_remaining = models.PositiveSmallIntegerField(null=True, blank=True)
+    has_acted = models.BooleanField(default=False)
 
     class Meta:
         constraints = [

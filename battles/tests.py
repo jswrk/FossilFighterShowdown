@@ -39,6 +39,8 @@ class FPTestBase(TestCase):
     def setUp(self):
         room = BattleRoom.objects.create(host=self.user, host_team=self.team)
         self.bs = BattleState.objects.create(room=room)
+        self.bs.active_side = HOST
+        self.bs.save()
         self.az = self._place(self.attacker, HOST, Zone.AZ)
         self.sz = self._place(self.ally, HOST, Zone.SZ1)
         self.foe = self._place(self.defender, GUEST, Zone.AZ)
@@ -192,3 +194,59 @@ class KnockedOutSZTests(FPTestBase):
         self.assertEqual(len(engine.trigger_link_roll(self.az)), 1)
         self._ko(self.sz)
         self.assertEqual(engine.trigger_link_roll(self.az), [])
+
+
+class TurnStartTests(FPTestBase):
+    def setUp(self):
+        super().setUp()
+        engine._set_fp_pool(self.bs, HOST, engine.MAX_FP)
+        engine._set_fp_pool(self.bs, GUEST, engine.MAX_FP)
+
+    def test_start_turn_sets_side_and_recharges(self):
+        engine._set_fp_pool(self.bs, GUEST, 0)
+        self.assertEqual(engine.start_turn(self.bs, GUEST), engine.FP_RECHARGE)
+        self.assertEqual(BattleState.objects.get(pk=self.bs.pk).active_side, GUEST)
+
+    def test_start_turn_resets_only_its_own_side(self):
+        BattleCreatureState.objects.filter(battle_state=self.bs).update(has_acted=True)
+        engine.start_turn(self.bs, HOST)
+        for state in (self.az, self.sz, self.foe):
+            state.refresh_from_db()
+        self.assertFalse(self.az.has_acted)
+        self.assertFalse(self.sz.has_acted)
+        self.assertTrue(self.foe.has_acted)
+
+    def test_creature_can_only_act_once(self):
+        engine.execute_move(self.az, self.foe, self.big_move)
+        self.az.refresh_from_db()
+        self.assertTrue(self.az.has_acted)
+        with self.assertRaises(engine.IllegalMoveError):
+            engine.execute_move(self.az, self.foe, self.big_move)
+
+    def test_cannot_act_on_other_sides_turn(self):
+        with self.assertRaises(engine.IllegalMoveError):
+            engine.execute_move(self.foe, self.az, self.big_move)
+        self.assertEqual(self._pool(GUEST), engine.MAX_FP)
+
+    def test_link_proc_does_not_use_holders_action(self):
+        result = engine.execute_move(self.az, self.foe, self.big_move)
+        self.assertEqual(len(result["link_hits"]), 1)
+        self.sz.refresh_from_db()
+        self.assertFalse(self.sz.has_acted)
+
+    def test_stale_copy_sees_start_turn_reset(self):
+        engine.execute_move(self.az, self.foe, self.big_move)
+        engine.start_turn(BattleState.objects.get(pk=self.bs.pk), HOST)
+        engine.execute_move(self.az, self.foe, self.big_move)
+
+    def test_ko_attacker_cannot_act(self):
+        self.az.current_lp = 0
+        self.az.save()
+        with self.assertRaises(engine.IllegalMoveError):
+            engine.execute_move(self.az, self.foe, self.big_move)
+
+    def test_ez_attacker_cannot_act(self):
+        self.az.zone = Zone.EZ
+        self.az.save()
+        with self.assertRaises(engine.IllegalMoveError):
+            engine.execute_move(self.az, self.foe, self.big_move)

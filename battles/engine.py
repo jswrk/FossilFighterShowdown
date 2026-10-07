@@ -197,6 +197,8 @@ def resolve_hit(attacker_state, defender_state, move):
 
 # multi hit move execution + secondary effect + link follow-up
 def execute_move(attacker_state, defender_state, move):
+    if not _can_act(attacker_state):
+        raise IllegalMoveError(f"{attacker_state.creature.name} can't act right now")
     if not is_move_legal(attacker_state, move):
         raise IllegalMoveError(
             f"{attacker_state.creature.name} cannot afford {move.name} "
@@ -204,6 +206,9 @@ def execute_move(attacker_state, defender_state, move):
         )
 
     spend_fp(attacker_state, move)
+
+    attacker_state.has_acted = True
+    attacker_state.save(update_fields=["has_acted"])
 
     hits = []
 
@@ -224,6 +229,15 @@ def execute_move(attacker_state, defender_state, move):
             link_hits.append((ally_state, resolve_hit(ally_state, defender_state, link_move)))
 
     return {"hits": hits, "secondary_effect": secondary_result, "link_hits": link_hits}
+
+
+# start of user turn
+def start_turn(battle_state, side):
+    battle_state.active_side = side
+    battle_state.save(update_fields=["active_side"])
+    battle_state.creature_states.filter(side=side).update(has_acted=False)
+    gain = recharge_fp(battle_state, side)
+    return gain
 
 
 '''helper functions'''
@@ -358,3 +372,16 @@ def _fp_plus_bonus(battle_state, side):
         total += skill.fp_plus_percent
 
     return total
+
+
+# act legality helper
+def _can_act(actor_state):
+    actor_state.refresh_from_db(fields=["has_acted", "current_lp", "zone"])
+    actor_state.battle_state.refresh_from_db(fields=["active_side"])
+
+    return (
+        actor_state.side == actor_state.battle_state.active_side
+        and not actor_state.has_acted
+        and actor_state.current_lp > 0
+        and actor_state.zone != BattleCreatureState.Zone.EZ
+    )
